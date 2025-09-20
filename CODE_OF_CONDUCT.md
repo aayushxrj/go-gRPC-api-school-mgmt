@@ -72,5 +72,10 @@ protoc `
 ```
 go get google.golang.org/grpc
 go get github.com/envoyproxy/protoc-gen-validate
- go get github.com/joho/godotenv
+go get github.com/joho/godotenv
+
+go get go.mongodb.org/mongo-driver/mongo
+go get github.com/go-mail/mail/v2
+go get github.com/golang-jwt/jwt/v5
+
 ```

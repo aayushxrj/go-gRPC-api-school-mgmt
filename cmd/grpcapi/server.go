@@ -1,25 +1,34 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net"
 	"os"
 
 	"github.com/aayushxrj/go-gRPC-api-school-mgmt/internals/api/handlers"
+	"github.com/aayushxrj/go-gRPC-api-school-mgmt/internals/repositories/mongodb"
 	pb "github.com/aayushxrj/go-gRPC-api-school-mgmt/proto/gen"
 	"github.com/joho/godotenv"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
 
-
 func main() {
 
+	// Load env
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatalf("Error loading .env file: %v", err)
 	}
+
+	// Connect MongoDB
+	client, err := mongodb.CreateMongoClient(context.Background())
+	if err != nil {
+		log.Fatalf("MongoDB connection failed: %v", err)
+	}
+	defer client.Disconnect(context.Background())
 
 	s := grpc.NewServer()
 
@@ -33,8 +42,8 @@ func main() {
 	port := os.Getenv("SERVER_PORT")
 
 	fmt.Printf("Server is running on port %s\n", port)
-	
-	lis,err := net.Listen("tcp", ":" + port)
+
+	lis, err := net.Listen("tcp", ":"+port)
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
 	}
@@ -42,6 +51,5 @@ func main() {
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("Failed to serve: %v", err)
 	}
-
 
 }
