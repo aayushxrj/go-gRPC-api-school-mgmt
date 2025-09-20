@@ -28,3 +28,49 @@ MailHog
 ```
 http://localhost:8025
 ```
+
+# Commands (Windows)
+INSTALL protoc and add to path
+
+```
+go mod init github.com/aayushxrj/go-gRPC-api-school-mgmt
+go mod tidy
+```
+
+On windows 
+```
+go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+go install github.com/envoyproxy/protoc-gen-validate@latest
+```
+add to path
+```
+C:\Users\aayus\go\bin
+```
+
+```
+protoc \
+  -I proto \
+  --go_out=proto/gen --go_opt=paths=source_relative \
+  --go-grpc_out=proto/gen --go-grpc_opt=paths=source_relative \
+  --validate_out="lang=go,paths=source_relative:proto/gen" \
+  proto/main.proto proto/students.proto proto/execs.proto
+```
+```
+protoc -I proto --go_out=proto/gen --go_opt=paths=source_relative --go-grpc_out=proto/gen --go-grpc_opt=paths=source_relative --validate_out="lang=go,paths=source_relative:proto/gen" proto/main.proto proto/students.proto proto/execs.proto
+```
+or
+```
+protoc `
+  -I proto `
+  --go_out=proto/gen --go_opt=paths=source_relative `
+  --go-grpc_out=proto/gen --go-grpc_opt=paths=source_relative `
+  --validate_out="lang=go,paths=source_relative:proto/gen" `
+  proto/main.proto proto/students.proto proto/execs.proto
+```
+
+```
+go get google.golang.org/grpc
+go get github.com/envoyproxy/protoc-gen-validate
+ go get github.com/joho/godotenv
+```
