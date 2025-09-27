@@ -275,6 +275,10 @@ type Teacher struct {
 	LastName string `protobuf:"bytes,3,opt,name=last_name,json=lastName,proto3" json:"last_name,omitempty"`
 	// email must be a valid email address
 	// string email = 4;
+	//
+	//	string email = 4 [(validate.rules).string = {
+	//	    email: true
+	//	}];
 	Email string `protobuf:"bytes,4,opt,name=email,proto3" json:"email,omitempty"`
 	// class must not contain special characters but can contain spaces
 	Class string `protobuf:"bytes,5,opt,name=class,proto3" json:"class,omitempty"`
@@ -420,13 +424,14 @@ const file_main_proto_rawDesc = "" +
 	"\x03ids\x18\x01 \x03(\v2\x0f.main.TeacherIdB\b\xfaB\x05\x92\x01\x02\b\x01R\x03ids\"g\n" +
 	"\x12GetTeachersRequest\x12'\n" +
 	"\ateacher\x18\x01 \x01(\v2\r.main.TeacherR\ateacher\x12(\n" +
-	"\asort_by\x18\x02 \x03(\v2\x0f.main.SortFieldR\x06sortBy\"\xfe\x01\n" +
+	"\asort_by\x18\x02 \x03(\v2\x0f.main.SortFieldR\x06sortBy\"\x81\x02\n" +
 	"\aTeacher\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x122\n" +
 	"\n" +
 	"first_name\x18\x02 \x01(\tB\x13\xfaB\x10r\x0e2\f^[A-Za-z ]*$R\tfirstName\x120\n" +
-	"\tlast_name\x18\x03 \x01(\tB\x13\xfaB\x10r\x0e2\f^[A-Za-z ]*$R\blastName\x12\x1d\n" +
-	"\x05email\x18\x04 \x01(\tB\a\xfaB\x04r\x02`\x01R\x05email\x12,\n" +
+	"\tlast_name\x18\x03 \x01(\tB\x13\xfaB\x10r\x0e2\f^[A-Za-z ]*$R\blastName\x12 \n" +
+	"\x05email\x18\x04 \x01(\tB\n" +
+	"\xfaB\ar\x05\xd0\x01\x01`\x01R\x05email\x12,\n" +
 	"\x05class\x18\x05 \x01(\tB\x16\xfaB\x13r\x112\x0f^[A-Za-z0-9 ]*$R\x05class\x120\n" +
 	"\asubject\x18\x06 \x01(\tB\x16\xfaB\x13r\x112\x0f^[A-Za-z0-9 ]*$R\asubject\"5\n" +
 	"\bTeachers\x12)\n" +

@@ -54,9 +54,11 @@ message Teacher {
     
     // email must be a valid email address
     // string email = 4;
-    string email = 4 [(validate.rules).string = {
-        email: true
-    }];
+    // string email = 4 [(validate.rules).string = {
+    //     email: true
+    // }];
+    string email = 4 [(validate.rules).string = {email: true, ignore_empty: true}];
+
 
     // class must not contain special characters but can contain spaces
     string class = 5 [(validate.rules).string = {

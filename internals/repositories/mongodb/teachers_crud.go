@@ -9,6 +9,8 @@ import (
 	"github.com/aayushxrj/go-gRPC-api-school-mgmt/pkg/utils"
 	pb "github.com/aayushxrj/go-gRPC-api-school-mgmt/proto/gen"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func AddTeachersDBHandler(ctx context.Context, teachersFromReq []*pb.Teacher) ([]*pb.Teacher, error) {
@@ -85,4 +87,64 @@ func mapPbTeacherToModelTeacher(pbTeacher *pb.Teacher) (*models.Teacher, error) 
 		}
 	}
 	return &modelTeacher, nil
+}
+
+func GetTeachersDBHandler(ctx context.Context, sortOptions primitive.D, filter primitive.M) ([]*pb.Teacher, error) {
+	client, err := CreateMongoClient(ctx)
+	if err != nil {
+		return nil, utils.ErrorHandler(err, "Database connection error")
+	}
+	defer client.Disconnect(ctx)
+
+	coll := client.Database("school").Collection("teachers")
+	var cursor *mongo.Cursor
+	if len(sortOptions) < 1 {
+		cursor, err = coll.Find(ctx, filter)
+	} else {
+		cursor, err = coll.Find(ctx, filter, options.Find().SetSort(sortOptions))
+	}
+	if err != nil {
+		return nil, utils.ErrorHandler(err, "Internal Error")
+	}
+	defer cursor.Close(ctx)
+
+	teachers, err := decodeEntities(ctx,
+		cursor,
+		func() *pb.Teacher { return &pb.Teacher{} },
+		func() *models.Teacher { return &models.Teacher{} })
+	if err != nil {
+		return nil, err
+	}
+	return teachers, nil
+}
+
+func decodeEntities[T any, M any](ctx context.Context, cursor *mongo.Cursor, newEntity func() *T, newModel func() *M) ([]*T, error) {
+	var entities []*T
+	for cursor.Next(ctx) {
+		model := newModel()
+		err := cursor.Decode(&model)
+		if err != nil {
+			return nil, utils.ErrorHandler(err, "Internal Error")
+		}
+		entity := newEntity()
+		modelVal := reflect.ValueOf(model).Elem()
+		pbVal := reflect.ValueOf(entity).Elem()
+
+		for i := 0; i < modelVal.NumField(); i++ {
+			modelField := modelVal.Field(i)
+			modelFieldName := modelVal.Type().Field(i).Name
+
+			pbField := pbVal.FieldByName(modelFieldName)
+			if pbField.IsValid() && pbField.CanSet() {
+				pbField.Set(modelField)
+			}
+		}
+		entities = append(entities, entity)
+	}
+
+	err := cursor.Err()
+	if err != nil {
+		return nil, utils.ErrorHandler(err, "internal error")
+	}
+	return entities, nil
 }

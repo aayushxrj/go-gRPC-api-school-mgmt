@@ -720,16 +720,20 @@ func (m *Teacher) validate(all bool) error {
 		errors = append(errors, err)
 	}
 
-	if err := m._validateEmail(m.GetEmail()); err != nil {
-		err = TeacherValidationError{
-			field:  "Email",
-			reason: "value must be a valid email address",
-			cause:  err,
+	if m.GetEmail() != "" {
+
+		if err := m._validateEmail(m.GetEmail()); err != nil {
+			err = TeacherValidationError{
+				field:  "Email",
+				reason: "value must be a valid email address",
+				cause:  err,
+			}
+			if !all {
+				return err
+			}
+			errors = append(errors, err)
 		}
-		if !all {
-			return err
-		}
-		errors = append(errors, err)
+
 	}
 
 	if !_Teacher_Class_Pattern.MatchString(m.GetClass()) {
