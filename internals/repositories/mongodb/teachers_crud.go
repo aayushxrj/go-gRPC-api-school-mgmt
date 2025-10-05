@@ -2,8 +2,6 @@ package mongodb
 
 import (
 	"context"
-	"fmt"
-	"reflect"
 
 	"github.com/aayushxrj/go-gRPC-api-school-mgmt/internals/models"
 	"github.com/aayushxrj/go-gRPC-api-school-mgmt/pkg/utils"
@@ -22,7 +20,7 @@ func AddTeachersDBHandler(ctx context.Context, teachersFromReq []*pb.Teacher) ([
 
 	newTeachers := make([]*models.Teacher, len(teachersFromReq))
 	for i, pbTeacher := range teachersFromReq {
-		newTeachers[i], err = mapPbTeacherToModelTeacher(pbTeacher)
+		newTeachers[i], err = MapPbTeacherToModelTeacher(pbTeacher)
 		if err != nil {
 			return nil, utils.ErrorHandler(err, "Error mapping teacher data")
 		}
@@ -42,51 +40,13 @@ func AddTeachersDBHandler(ctx context.Context, teachersFromReq []*pb.Teacher) ([
 			teacher.Id = objectId.Hex()
 		}
 
-		pbTeacher, err := mapModelTeacherToPbTeacher(teacher)
+		pbTeacher, err := MapModelTeacherToPbTeacher(teacher)
 		if err != nil {
 			return nil, utils.ErrorHandler(err, "Error mapping teacher data")
 		}
 		addedTeachers = append(addedTeachers, pbTeacher)
 	}
 	return addedTeachers, nil
-}
-
-func mapModelTeacherToPbTeacher(teacher *models.Teacher) (*pb.Teacher, error) {
-	pbTeacher := &pb.Teacher{}
-	modelVal := reflect.ValueOf(*teacher)
-	pbVal := reflect.ValueOf(pbTeacher).Elem()
-
-	for i := 0; i < modelVal.NumField(); i++ {
-		modelField := modelVal.Field(i)
-		modelFieldTypeName := modelVal.Type().Field(i).Name
-
-		pbField := pbVal.FieldByName(modelFieldTypeName)
-		if pbField.IsValid() && pbField.CanSet() {
-			pbField.Set(modelField)
-		} else {
-			return nil, fmt.Errorf("field %s not found or cannot be set in pb.Teacher", modelFieldTypeName)
-		}
-	}
-	return pbTeacher, nil
-}
-
-func mapPbTeacherToModelTeacher(pbTeacher *pb.Teacher) (*models.Teacher, error) {
-	modelTeacher := models.Teacher{}
-	pbVal := reflect.ValueOf(pbTeacher).Elem()
-	modelVal := reflect.ValueOf(&modelTeacher).Elem()
-
-	for i := 0; i < pbVal.NumField(); i++ {
-		pbField := pbVal.Field(i)
-		fieldName := pbVal.Type().Field(i).Name
-
-		modelField := modelVal.FieldByName(fieldName)
-		if modelField.IsValid() && modelField.CanSet() {
-			modelField.Set(pbField)
-		} else {
-			return nil, fmt.Errorf("field %s not found or cannot be set in models.Teacher", fieldName)
-		}
-	}
-	return &modelTeacher, nil
 }
 
 func GetTeachersDBHandler(ctx context.Context, sortOptions primitive.D, filter primitive.M) ([]*pb.Teacher, error) {
@@ -108,7 +68,7 @@ func GetTeachersDBHandler(ctx context.Context, sortOptions primitive.D, filter p
 	}
 	defer cursor.Close(ctx)
 
-	teachers, err := decodeEntities(ctx,
+	teachers, err := DecodeEntities(ctx,
 		cursor,
 		func() *pb.Teacher { return &pb.Teacher{} },
 		func() *models.Teacher { return &models.Teacher{} })
@@ -116,35 +76,4 @@ func GetTeachersDBHandler(ctx context.Context, sortOptions primitive.D, filter p
 		return nil, err
 	}
 	return teachers, nil
-}
-
-func decodeEntities[T any, M any](ctx context.Context, cursor *mongo.Cursor, newEntity func() *T, newModel func() *M) ([]*T, error) {
-	var entities []*T
-	for cursor.Next(ctx) {
-		model := newModel()
-		err := cursor.Decode(&model)
-		if err != nil {
-			return nil, utils.ErrorHandler(err, "Internal Error")
-		}
-		entity := newEntity()
-		modelVal := reflect.ValueOf(model).Elem()
-		pbVal := reflect.ValueOf(entity).Elem()
-
-		for i := 0; i < modelVal.NumField(); i++ {
-			modelField := modelVal.Field(i)
-			modelFieldName := modelVal.Type().Field(i).Name
-
-			pbField := pbVal.FieldByName(modelFieldName)
-			if pbField.IsValid() && pbField.CanSet() {
-				pbField.Set(modelField)
-			}
-		}
-		entities = append(entities, entity)
-	}
-
-	err := cursor.Err()
-	if err != nil {
-		return nil, utils.ErrorHandler(err, "internal error")
-	}
-	return entities, nil
 }
