@@ -6,9 +6,12 @@ import (
 	"github.com/aayushxrj/go-gRPC-api-school-mgmt/internals/models"
 	"github.com/aayushxrj/go-gRPC-api-school-mgmt/pkg/utils"
 	pb "github.com/aayushxrj/go-gRPC-api-school-mgmt/proto/gen"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func AddTeachersDBHandler(ctx context.Context, teachersFromReq []*pb.Teacher) ([]*pb.Teacher, error) {
@@ -20,7 +23,7 @@ func AddTeachersDBHandler(ctx context.Context, teachersFromReq []*pb.Teacher) ([
 
 	newTeachers := make([]*models.Teacher, len(teachersFromReq))
 	for i, pbTeacher := range teachersFromReq {
-		newTeachers[i], err = MapPbTeacherToModelTeacher(pbTeacher)
+		newTeachers[i], err = mapPbTeacherToModelTeacher(pbTeacher)
 		if err != nil {
 			return nil, utils.ErrorHandler(err, "Error mapping teacher data")
 		}
@@ -40,7 +43,7 @@ func AddTeachersDBHandler(ctx context.Context, teachersFromReq []*pb.Teacher) ([
 			teacher.Id = objectId.Hex()
 		}
 
-		pbTeacher, err := MapModelTeacherToPbTeacher(teacher)
+		pbTeacher, err := mapModelTeacherToPbTeacher(*teacher)
 		if err != nil {
 			return nil, utils.ErrorHandler(err, "Error mapping teacher data")
 		}
@@ -76,4 +79,59 @@ func GetTeachersDBHandler(ctx context.Context, sortOptions primitive.D, filter p
 		return nil, err
 	}
 	return teachers, nil
+}
+
+func UpdateTeachersDBHandler(ctx context.Context, pbTeachers []*pb.Teacher) ([]*pb.Teacher, error) {
+	client, err := CreateMongoClient(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Internal, "Database connection error")
+	}
+	defer client.Disconnect(ctx)
+
+	var updatedTeachers []*pb.Teacher
+
+	for _, teacher := range pbTeachers {
+
+		if teacher.Id == "" {
+			return nil, status.Error(codes.InvalidArgument, "Teacher ID is required for update")
+		}
+
+		modelTeacher, err := mapPbTeacherToModelTeacher(teacher)
+		if err != nil {
+			return nil, status.Error(codes.Internal, "Error mapping teacher data")
+		}
+
+		objID, err := primitive.ObjectIDFromHex(teacher.Id)
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, "Invalid ID format")
+		}
+
+		// converting modelTeacher to bson Document
+		modelDoc, err := bson.Marshal(modelTeacher)
+		if err != nil {
+			return nil, status.Error(codes.Internal, "Error preparing teacher data for update")
+		}
+
+		var updateDoc bson.M
+		err = bson.Unmarshal(modelDoc, &updateDoc)
+		if err != nil {
+			return nil, status.Error(codes.Internal, "Error preparing teacher data for update")
+		}
+
+		// remove the _id field from the update document
+		delete(updateDoc, "_id")
+
+		_, err = client.Database("school").Collection("teachers").UpdateOne(ctx, bson.M{"_id": objID}, bson.M{"$set": updateDoc})
+		if err != nil {
+			return nil, status.Error(codes.Internal, "Error updating teacher data")
+		}
+
+		updatedTeacher, err := mapModelTeacherToPbTeacher(*modelTeacher)
+		if err != nil {
+			return nil, status.Error(codes.Internal, "Error mapping teacher data")
+		}
+
+		updatedTeachers = append(updatedTeachers, updatedTeacher)
+	}
+	return updatedTeachers, nil
 }
