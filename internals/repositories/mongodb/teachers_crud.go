@@ -135,3 +135,41 @@ func UpdateTeachersDBHandler(ctx context.Context, pbTeachers []*pb.Teacher) ([]*
 	}
 	return updatedTeachers, nil
 }
+
+func DeleteTeachersDBHandler(ctx context.Context, teacherIdsToDelete []string) ([]string, error) {
+	client, err := CreateMongoClient(ctx)
+	if err != nil {
+		return nil, utils.ErrorHandler(err, "Database connection error")
+	}
+	defer client.Disconnect(ctx)
+
+	objectIds := make([]primitive.ObjectID, len(teacherIdsToDelete))
+	for i, id := range teacherIdsToDelete {
+		if id == "" {
+			return nil, utils.ErrorHandler(err, "Teacher ID is required for deletion")
+		}
+		objID, err := primitive.ObjectIDFromHex(id)
+		if err != nil {
+			return nil, utils.ErrorHandler(err, "Invalid teacher ID format")
+		}
+		objectIds[i] = objID
+	}
+
+	filter := bson.M{"_id": bson.M{"$in": objectIds}}
+	result, err := client.Database("school").Collection("teachers").DeleteMany(ctx, filter)
+	if err != nil {
+		return nil, utils.ErrorHandler(err, "Error deleting teachers from database")
+	}
+
+	if result.DeletedCount == 0 {
+		return nil, status.Error(codes.NotFound, "No teachers found to delete")
+	}
+
+	deletedIds := make([]string, result.DeletedCount)
+	
+	for i, objID := range objectIds {
+		deletedIds[i] = objID.Hex()
+	}
+
+	return deletedIds, nil
+}
