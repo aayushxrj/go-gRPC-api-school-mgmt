@@ -8,6 +8,8 @@ import (
 	"github.com/aayushxrj/go-gRPC-api-school-mgmt/pkg/utils"
 	pb "github.com/aayushxrj/go-gRPC-api-school-mgmt/proto/gen"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func AddExecsDBHandler(ctx context.Context, execsFromReq []*pb.Exec) ([]*pb.Exec, error) {
@@ -57,4 +59,33 @@ func AddExecsDBHandler(ctx context.Context, execsFromReq []*pb.Exec) ([]*pb.Exec
 		addedExecs = append(addedExecs, pbExec)
 	}
 	return addedExecs, nil
+}
+
+func GetExecsDBHandler(ctx context.Context, sortOptions primitive.D, filter primitive.M) ([]*pb.Exec, error) {
+	client, err := CreateMongoClient(ctx)
+	if err != nil {
+		return nil, utils.ErrorHandler(err, "Database connection error")
+	}
+	defer client.Disconnect(ctx)
+
+	coll := client.Database("school").Collection("execs")
+	var cursor *mongo.Cursor
+	if len(sortOptions) < 1 {
+		cursor, err = coll.Find(ctx, filter)
+	} else {
+		cursor, err = coll.Find(ctx, filter, options.Find().SetSort(sortOptions))
+	}
+	if err != nil {
+		return nil, utils.ErrorHandler(err, "Internal Error")
+	}
+	defer cursor.Close(ctx)
+
+	execs, err := DecodeEntities(ctx,
+		cursor,
+		func() *pb.Exec { return &pb.Exec{} },
+		func() *models.Exec { return &models.Exec{} })
+	if err != nil {
+		return nil, err
+	}
+	return execs, nil
 }

@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 
+	"github.com/aayushxrj/go-gRPC-api-school-mgmt/internals/models"
 	"github.com/aayushxrj/go-gRPC-api-school-mgmt/internals/repositories/mongodb"
 	pb "github.com/aayushxrj/go-gRPC-api-school-mgmt/proto/gen"
 	"google.golang.org/grpc/codes"
@@ -26,4 +27,38 @@ func (s *Server) AddStudents(ctx context.Context, req *pb.Students) (*pb.Student
 	}
 
 	return &pb.Students{Students: addedStudents}, nil
+}
+
+func (s *Server) GetStudents(ctx context.Context, req *pb.GetStudentsRequest) (*pb.Students, error) {
+	if err := req.Validate(); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	// Filtering, getting the filters from the request
+	filter, err := BuildFilterForTeacher(req.Student, models.Student{})
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	// Sorting, getting the sort options from the request
+	sortOptions := BuildSortOptions(req.GetSortBy())
+
+	// for pagination
+	pageNumber := req.GetPageNumber()
+	pageSize := req.GetPageSize()
+
+	if pageNumber < 1 {
+		pageNumber = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+
+	// Access the database to fetch data
+	students, err := mongodb.GetStudentsDBHandler(ctx, sortOptions, filter, pageNumber, pageSize)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &pb.Students{Students: students}, nil
 }
