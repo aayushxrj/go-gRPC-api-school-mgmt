@@ -74,14 +74,13 @@ func mapModelTeacherToPbTeacher(teacherModel models.Teacher) (*pb.Teacher, error
 	return mapModelToPb(teacherModel, func() *pb.Teacher { return &pb.Teacher{} })
 }
 
-// TODO
-// func mapModelStudentToPbStudent(studentModel models.Student) (*pb.Student, error) {
-// 	return mapModelToPb(studentModel, func() *pb.Student { return &pb.Student{} })
-// }
+func mapModelStudentToPbStudent(studentModel models.Student) (*pb.Student, error) {
+	return mapModelToPb(studentModel, func() *pb.Student { return &pb.Student{} })
+}
 
-// func mapModelExecToPbExec(execModel models.Exec) (*pb.Exec, error) {
-// 	return mapModelToPb(execModel, func() *pb.Exec { return &pb.Exec{} })
-// }
+func mapModelExecToPbExec(execModel models.Exec) (*pb.Exec, error) {
+	return mapModelToPb(execModel, func() *pb.Exec { return &pb.Exec{} })
+}
 
 func mapPbToModel[P any, M any](pbStruct P, newModel func() *M) (*M, error) {
 
@@ -96,9 +95,7 @@ func mapPbToModel[P any, M any](pbStruct P, newModel func() *M) (*M, error) {
 		modelField := modelVal.FieldByName(fieldName)
 		if modelField.IsValid() && modelField.CanSet() {
 			modelField.Set(pbField)
-		} else {
-			return nil, fmt.Errorf("field %s not found or cannot be set in models.Teacher", fieldName)
-		}
+		} 
 	}
 
 	return modelStruct, nil
@@ -108,14 +105,13 @@ func mapPbTeacherToModelTeacher(pbTeacher *pb.Teacher) (*models.Teacher, error) 
 	return mapPbToModel(pbTeacher, func() *models.Teacher { return &models.Teacher{} })
 }
 
-// TODO
-// func mapPbStudentToModelStudent(pbStudent *pb.Student) (*models.Student, error) {
-// 	return mapPbToModel(pbStudent, func() *models.Student { return &models.Student{} })
-// }
+func mapPbStudentToModelStudent(pbStudent *pb.Student) (*models.Student, error) {
+	return mapPbToModel(pbStudent, func() *models.Student { return &models.Student{} })
+}
 
-// func mapPbExecToModelExec(pbExec *pb.Exec) (*models.Exec, error) {
-// 	return mapPbToModel(pbExec, func() *models.Exec { return &models.Exec{} })
-// }
+func mapPbExecToModelExec(pbExec *pb.Exec) (*models.Exec, error) {
+	return mapPbToModel(pbExec, func() *models.Exec { return &models.Exec{} })
+}
 
 
 func DecodeEntities[T any, M any](ctx context.Context, cursor *mongo.Cursor, newEntity func() *T, newModel func() *M) ([]*T, error) {
