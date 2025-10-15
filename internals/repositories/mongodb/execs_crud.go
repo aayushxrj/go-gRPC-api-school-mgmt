@@ -7,6 +7,7 @@ import (
 	"github.com/aayushxrj/go-gRPC-api-school-mgmt/internals/models"
 	"github.com/aayushxrj/go-gRPC-api-school-mgmt/pkg/utils"
 	pb "github.com/aayushxrj/go-gRPC-api-school-mgmt/proto/gen"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -88,4 +89,76 @@ func GetExecsDBHandler(ctx context.Context, sortOptions primitive.D, filter prim
 		return nil, err
 	}
 	return execs, nil
+}
+
+func UpdateExecsDBHandler(ctx context.Context, pbExecs []*pb.Exec) ([]*pb.Exec, error) {
+	client, err := CreateMongoClient(ctx)
+	if err != nil {
+		return nil, utils.ErrorHandler(err, "Database connection error")
+	}
+	defer client.Disconnect(ctx)
+
+	var updatedExecs []*pb.Exec
+
+	for _, exec := range pbExecs {
+		if exec.Id == "" {
+			return nil, utils.ErrorHandler(nil, "Exec ID is required for update")
+		}
+
+		modelExec, err := mapPbExecToModelExec(exec)
+		if err != nil {
+			return nil, utils.ErrorHandler(err, "Error mapping exec data")
+		}
+
+		objID, err := primitive.ObjectIDFromHex(exec.Id)
+		if err != nil {
+			return nil, utils.ErrorHandler(err, "Invalid ID format")
+		}
+
+		// Hash password if provided
+		if exec.Password != "" {
+			hashed, err := utils.HashPassword(exec.Password)
+			if err != nil {
+				return nil, utils.ErrorHandler(err, "Error hashing password")
+			}
+			modelExec.Password = hashed
+		}
+
+		// Convert modelExec to BSON document
+		modelDoc, err := bson.Marshal(modelExec)
+		if err != nil {
+			return nil, utils.ErrorHandler(err, "Error preparing exec data for update")
+		}
+
+		var updateDoc bson.M
+		if err := bson.Unmarshal(modelDoc, &updateDoc); err != nil {
+			return nil, utils.ErrorHandler(err, "Error preparing exec data for update")
+		}
+
+		// Do not update _id
+		delete(updateDoc, "_id")
+
+		// Do not update password if it wasn't provided
+		if exec.Password == "" {
+			delete(updateDoc, "password")
+		}
+
+		_, err = client.Database("school").Collection("execs").UpdateOne(
+			ctx,
+			bson.M{"_id": objID},
+			bson.M{"$set": updateDoc},
+		)
+		if err != nil {
+			return nil, utils.ErrorHandler(err, "Error updating exec data")
+		}
+
+		updatedExec, err := mapModelExecToPbExec(*modelExec)
+		if err != nil {
+			return nil, utils.ErrorHandler(err, "Error mapping exec data")
+		}
+		updatedExec.Id = exec.Id
+
+		updatedExecs = append(updatedExecs, updatedExec)
+	}
+	return updatedExecs, nil
 }
