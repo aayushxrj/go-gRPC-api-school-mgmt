@@ -85,21 +85,3 @@ func (s *Server) DeleteTeachers(ctx context.Context, req *pb.TeacherIds) (*pb.De
 
 	return &pb.DeleteTeachersConfirmation{Status: "Teachers deleted successfully", DeletedIds: deletedIds}, nil
 }
-
-func (s *Server) GetStudentsByClassTeacher (ctx context.Context, req *pb.TeacherId) (*pb.Students, error) {
-	if err := req.Validate(); err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-
-	teacherId := req.GetId()
-	if teacherId == "" {
-		return nil, status.Error(codes.InvalidArgument, "Teacher ID is required")
-	}
-	
-	students, err := mongodb.GetStudentsByClassTeacherDBHandler(ctx, teacherId)
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-
-	return &pb.Students{Students: students}, nil
-}

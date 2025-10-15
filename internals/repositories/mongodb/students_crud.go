@@ -169,3 +169,70 @@ func DeleteStudentsDBHandler(ctx context.Context, studentIdsToDelete []string) (
 
 	return deletedIds, nil
 }
+
+func GetStudentsByClassTeacherDBHandler(ctx context.Context, teacherId string) ([]*pb.Student, error) {
+	client, err := CreateMongoClient(ctx)
+	if err != nil {
+		return nil, utils.ErrorHandler(err, "Database connection error")
+	}
+	defer client.Disconnect(ctx)
+
+	objID, err := primitive.ObjectIDFromHex(teacherId)
+	if err != nil {
+		return nil, utils.ErrorHandler(err, "Invalid teacher ID format")
+	}
+
+	var teacher models.Teacher
+	err = client.Database("school").Collection("teachers").FindOne(ctx, bson.M{"_id": objID}).Decode(&teacher)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, utils.ErrorHandler(err, "Teacher not found")
+		}
+		return nil, utils.ErrorHandler(err, "Error fetching teacher data")
+	}
+
+	cursor, err := client.Database("school").Collection("students").Find(ctx, bson.M{"class": teacher.Class})
+	if err != nil {
+		return nil, utils.ErrorHandler(err, "Error fetching students by class")
+	}
+	defer cursor.Close(ctx)
+
+	students, err := DecodeEntities(ctx,
+		cursor,
+		func() *pb.Student { return &pb.Student{} },
+		func() *models.Student { return &models.Student{} })	
+	if err != nil {
+		return nil, utils.ErrorHandler(err, "Error decoding student data")
+	}
+
+	return students, nil
+}
+
+func GetStudentCountByClassTeacherDBHandler(ctx context.Context, teacherId string) (int32, error) {
+	client, err := CreateMongoClient(ctx)
+	if err != nil {
+		return 0, utils.ErrorHandler(err, "Database connection error")
+	}
+	defer client.Disconnect(ctx)
+
+	objID, err := primitive.ObjectIDFromHex(teacherId)
+	if err != nil {
+		return 0, utils.ErrorHandler(err, "Invalid teacher ID format")
+	}
+
+	var teacher models.Teacher
+	err = client.Database("school").Collection("teachers").FindOne(ctx, bson.M{"_id": objID}).Decode(&teacher)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return 0, utils.ErrorHandler(err, "Teacher not found")
+		}
+		return 0, utils.ErrorHandler(err, "Error fetching teacher data")
+	}
+
+	count, err := client.Database("school").Collection("students").CountDocuments(ctx, bson.M{"class": teacher.Class})
+	if err != nil {
+		return 0, utils.ErrorHandler(err, "Error counting students")
+	}
+
+	return int32(count), nil
+}
