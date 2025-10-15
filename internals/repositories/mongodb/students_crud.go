@@ -10,6 +10,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func AddStudentsDBHandler(ctx context.Context, studentsFromReq []*pb.Student) ([]*pb.Student, error) {
@@ -130,4 +132,40 @@ func UpdateStudentsDBHandler(ctx context.Context, pbStudents []*pb.Student) ([]*
 		updatedStudents = append(updatedStudents, updatedStudent)
 	}
 	return updatedStudents, nil
+}
+func DeleteStudentsDBHandler(ctx context.Context, studentIdsToDelete []string) ([]string, error) {
+	client, err := CreateMongoClient(ctx)
+	if err != nil {
+		return nil, utils.ErrorHandler(err, "Database connection error")
+	}
+	defer client.Disconnect(ctx)
+
+	objectIds := make([]primitive.ObjectID, 0, len(studentIdsToDelete))
+	for _, id := range studentIdsToDelete {
+		if id == "" {
+			return nil, utils.ErrorHandler(err, "Student ID is required for deletion")
+		}
+		objID, err := primitive.ObjectIDFromHex(id)
+		if err != nil {
+			return nil, utils.ErrorHandler(err, "Invalid student ID format")
+		}
+		objectIds = append(objectIds, objID)
+	}
+
+	filter := bson.M{"_id": bson.M{"$in": objectIds}}
+	result, err := client.Database("school").Collection("students").DeleteMany(ctx, filter)
+	if err != nil {
+		return nil, utils.ErrorHandler(err, "Error deleting students from database")
+	}
+
+	if result.DeletedCount == 0 {
+		return nil, status.Error(codes.NotFound, "No students found to delete")
+	}
+
+	deletedIds := make([]string, 0, len(objectIds))
+	for _, objID := range objectIds {
+		deletedIds = append(deletedIds, objID.Hex())
+	}
+
+	return deletedIds, nil
 }

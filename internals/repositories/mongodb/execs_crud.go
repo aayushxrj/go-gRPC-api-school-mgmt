@@ -162,3 +162,34 @@ func UpdateExecsDBHandler(ctx context.Context, pbExecs []*pb.Exec) ([]*pb.Exec, 
 	}
 	return updatedExecs, nil
 }
+func DeleteExecsDBHandler(ctx context.Context, execIdsToDelete []string) ([]string, error) {
+	client, err := CreateMongoClient(ctx)
+	if err != nil {
+		return nil, utils.ErrorHandler(err, "Database connection error")
+	}
+	defer client.Disconnect(ctx)
+
+	objectIds := make([]primitive.ObjectID, len(execIdsToDelete))
+	for i, id := range execIdsToDelete {
+		if id == "" {
+			return nil, utils.ErrorHandler(nil, "Exec ID is required for deletion")
+		}
+		objID, err := primitive.ObjectIDFromHex(id)
+		if err != nil {
+			return nil, utils.ErrorHandler(err, "Invalid exec ID format")
+		}
+		objectIds[i] = objID
+	}
+
+	filter := bson.M{"_id": bson.M{"$in": objectIds}}
+	result, err := client.Database("school").Collection("execs").DeleteMany(ctx, filter)
+	if err != nil {
+		return nil, utils.ErrorHandler(err, "Error deleting execs from database")
+	}
+
+	if result.DeletedCount == 0 {
+		return nil, utils.ErrorHandler(nil, "No execs found to delete")
+	}
+
+	return execIdsToDelete, nil
+}

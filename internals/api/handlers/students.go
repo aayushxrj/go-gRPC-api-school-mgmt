@@ -74,3 +74,22 @@ func (s *Server) UpdateStudents(ctx context.Context, req *pb.Students) (*pb.Stud
 
 	return &pb.Students{Students: updatedStudents}, nil
 }
+func (s *Server) DeleteStudents(ctx context.Context, req *pb.StudentIds) (*pb.DeleteStudentsConfirmation, error) {
+	if err := req.Validate(); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	ids := req.GetIds()
+	var studentIdsToDelete []string
+
+	for _, v := range ids {
+		studentIdsToDelete = append(studentIdsToDelete, v)
+	}
+
+	deletedIds, err := mongodb.DeleteStudentsDBHandler(ctx, studentIdsToDelete)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &pb.DeleteStudentsConfirmation{Status: "Students deleted successfully", DeletedIds: deletedIds}, nil
+}
