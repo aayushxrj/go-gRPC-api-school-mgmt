@@ -193,3 +193,23 @@ func DeleteExecsDBHandler(ctx context.Context, execIdsToDelete []string) ([]stri
 
 	return execIdsToDelete, nil
 }
+
+func LoginExecDBHandler(ctx context.Context, req *pb.ExecLoginRequest) (*models.Exec, error) {
+	client, err := CreateMongoClient(ctx)
+	if err != nil {
+		return nil, utils.ErrorHandler(err, "Database connection error")
+	}
+	defer client.Disconnect(ctx)
+
+	filter := bson.M{"username": req.GetUsername()}
+	var exec models.Exec
+	err = client.Database("school").Collection("execs").FindOne(ctx, filter).Decode(&exec)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, utils.ErrorHandler(err, "Exec not found")
+		}
+		return nil, utils.ErrorHandler(err, "Error fetching exec data")
+	}
+
+	return &exec, nil
+}

@@ -5,6 +5,7 @@ import (
 
 	"github.com/aayushxrj/go-gRPC-api-school-mgmt/internals/models"
 	"github.com/aayushxrj/go-gRPC-api-school-mgmt/internals/repositories/mongodb"
+	"github.com/aayushxrj/go-gRPC-api-school-mgmt/pkg/utils"
 	pb "github.com/aayushxrj/go-gRPC-api-school-mgmt/proto/gen"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -63,6 +64,7 @@ func (s *Server) UpdateExecs(ctx context.Context, req *pb.Execs) (*pb.Execs, err
 
 	return &pb.Execs{Execs: updatedExecs}, nil
 }
+
 func (s *Server) DeleteExecs(ctx context.Context, req *pb.ExecIds) (*pb.DeleteExecsConfirmation, error) {
 	if err := req.Validate(); err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -81,4 +83,34 @@ func (s *Server) DeleteExecs(ctx context.Context, req *pb.ExecIds) (*pb.DeleteEx
 	}
 
 	return &pb.DeleteExecsConfirmation{Status: "Execs deleted successfully", DeletedIds: deletedIds}, nil
+}
+
+func (s *Server) Login(ctx context.Context, req *pb.ExecLoginRequest) (*pb.ExecLoginResponse, error) {
+	if err := req.Validate(); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	exec, err := mongodb.LoginExecDBHandler(ctx, req)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	if exec.InactiveStatus {
+		return nil, status.Error(codes.Unauthenticated, "Account is inactive")
+	}
+
+	err = utils.VerifyPassword(req.GetPassword(), exec.Password)
+	if err != nil {
+		return nil, utils.ErrorHandler(err, "Incorrect password")
+	}
+
+	tokenString, err := utils.SignToken(exec.Id, exec.Username, exec.Role)
+	if err != nil {
+		return nil, utils.ErrorHandler(err, "Error generating auth token")
+	}
+
+	return &pb.ExecLoginResponse{
+		Status: true,
+		Token:  tokenString,
+	}, nil
 }
