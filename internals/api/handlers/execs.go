@@ -134,3 +134,24 @@ func (s *Server) UpdatePassword(ctx context.Context, req *pb.UpdatePasswordReque
 		Token:          token,
 	}, nil
 }
+
+func (s *Server) DeactivateUser(ctx context.Context, req *pb.ExecIds) (*pb.Confirmation, error) {
+	if err := req.Validate(); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	res, err := mongodb.DeactivateUserDBHandler(ctx, req.GetIds())
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	if res.ModifiedCount == 0 {
+		return &pb.Confirmation{
+			Confirmation: false,
+		}, nil
+	}
+
+	return &pb.Confirmation{
+		Confirmation: true,
+	}, nil
+}

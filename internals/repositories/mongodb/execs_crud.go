@@ -271,3 +271,32 @@ func UpdatePasswordExecDBHandler(ctx context.Context, req *pb.UpdatePasswordRequ
 
 	return token, nil
 }
+
+func DeactivateUserDBHandler(ctx context.Context, execIdsToDeactivate []string) (*mongo.UpdateResult, error) {
+	client, err := CreateMongoClient(ctx)
+	if err != nil {
+		return nil, utils.ErrorHandler(err, "Database connection error")
+	}
+	defer client.Disconnect(ctx)
+
+	var objectIds []primitive.ObjectID
+	for _, id := range execIdsToDeactivate {
+		if id == "" {
+			return nil, utils.ErrorHandler(nil, "Exec ID is required for deactivation")
+		}
+		objID, err := primitive.ObjectIDFromHex(id)
+		if err != nil {
+			return nil, utils.ErrorHandler(err, "Invalid exec ID format")
+		}
+		objectIds = append(objectIds, objID)
+	}
+
+	filter := bson.M{"_id": bson.M{"$in": objectIds}}
+	update := bson.M{"$set": bson.M{"inactive_status": true}}
+	res, err := client.Database("school").Collection("execs").UpdateMany(ctx, filter, update)
+	if err != nil {
+		return nil, utils.ErrorHandler(err, "Error deactivating execs")
+	}
+
+	return res, nil
+}
