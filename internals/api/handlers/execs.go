@@ -114,3 +114,23 @@ func (s *Server) Login(ctx context.Context, req *pb.ExecLoginRequest) (*pb.ExecL
 		Token:  tokenString,
 	}, nil
 }
+
+func (s *Server) UpdatePassword(ctx context.Context, req *pb.UpdatePasswordRequest) (*pb.UpdatePasswordResponse, error) {
+	if err := req.Validate(); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	token, err := mongodb.UpdatePasswordExecDBHandler(ctx, req)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	if token == "" {
+		return nil, status.Error(codes.Internal, "Failed to update password")
+	}
+
+	return &pb.UpdatePasswordResponse{
+		PasswordUpdated: true,
+		Token:          token,
+	}, nil
+}

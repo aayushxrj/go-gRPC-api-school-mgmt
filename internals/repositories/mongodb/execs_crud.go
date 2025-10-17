@@ -11,6 +11,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func AddExecsDBHandler(ctx context.Context, execsFromReq []*pb.Exec) ([]*pb.Exec, error) {
@@ -212,4 +214,60 @@ func LoginExecDBHandler(ctx context.Context, req *pb.ExecLoginRequest) (*models.
 	}
 
 	return &exec, nil
+}
+
+func UpdatePasswordExecDBHandler(ctx context.Context, req *pb.UpdatePasswordRequest) (string, error) {
+	client, err := CreateMongoClient(ctx)
+	if err != nil {
+		return "", utils.ErrorHandler(err, "Database connection error")
+	}
+	defer client.Disconnect(ctx)
+
+	objId, err := primitive.ObjectIDFromHex(req.GetId())
+	if err != nil {
+		return "", utils.ErrorHandler(err, "Invalid ID format")
+	}
+
+	filter := bson.M{"_id": objId}
+	var exec models.Exec
+	err = client.Database("school").Collection("execs").FindOne(ctx, filter).Decode(&exec)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return "", utils.ErrorHandler(err, "Exec not found")
+		}
+		return "", utils.ErrorHandler(err, "Error fetching exec data")
+	}
+
+	if exec.InactiveStatus {
+		return "", status.Error(codes.Unauthenticated, "Account is inactive")
+	}
+
+	err = utils.VerifyPassword(req.GetCurrentPassword(), exec.Password)
+	if err != nil {
+		return "", utils.ErrorHandler(err, "Incorrect old password")
+	}
+
+	hashedNewPassword, err := utils.HashPassword(req.GetNewPassword())
+	if err != nil {
+		return "", utils.ErrorHandler(err, "Error hashing new password")
+	}
+
+	update := bson.M{
+		"$set": bson.M{
+			"password":            hashedNewPassword,
+			"password_changed_at": time.Now().Format(time.RFC3339),
+		},
+	}
+
+	_, err = client.Database("school").Collection("execs").UpdateOne(ctx, filter, update)
+	if err != nil {
+		return "", utils.ErrorHandler(err, "Error updating password")
+	}
+
+	token, err := utils.SignToken(exec.Id, exec.Username, exec.Role)
+	if err != nil {
+		return "", utils.ErrorHandler(err, "Error generating auth token")
+	}
+
+	return token, nil
 }
