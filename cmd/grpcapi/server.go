@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/aayushxrj/go-gRPC-api-school-mgmt/internals/api/handlers"
+	"github.com/aayushxrj/go-gRPC-api-school-mgmt/internals/api/interceptors"
 	"github.com/aayushxrj/go-gRPC-api-school-mgmt/internals/repositories/mongodb"
 	pb "github.com/aayushxrj/go-gRPC-api-school-mgmt/proto/gen"
 	"github.com/joho/godotenv"
@@ -30,7 +31,7 @@ func main() {
 	}
 	defer client.Disconnect(context.Background())
 
-	s := grpc.NewServer()
+	s := grpc.NewServer(grpc.ChainUnaryInterceptor(interceptors.ResponseTimeInterceptor))
 
 	pb.RegisterTeachersServiceServer(s, &handlers.Server{})
 	pb.RegisterStudentsServiceServer(s, &handlers.Server{})
