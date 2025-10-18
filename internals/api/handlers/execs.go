@@ -155,3 +155,20 @@ func (s *Server) DeactivateUser(ctx context.Context, req *pb.ExecIds) (*pb.Confi
 		Confirmation: true,
 	}, nil
 }
+
+func (s *Server) ForgotPassword(ctx context.Context, req *pb.ForgotPasswordRequest) (*pb.ForgotPasswordResponse, error) {
+	if err := req.Validate(); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	email := req.GetEmail()
+	message, err := mongodb.ForgotPasswordExecDBHandler(ctx, email)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &pb.ForgotPasswordResponse{
+		Confirmation: true,
+		Message:      message,
+	}, nil
+}

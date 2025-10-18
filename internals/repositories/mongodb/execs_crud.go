@@ -2,6 +2,12 @@ package mongodb
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/aayushxrj/go-gRPC-api-school-mgmt/internals/models"
@@ -299,4 +305,76 @@ func DeactivateUserDBHandler(ctx context.Context, execIdsToDeactivate []string) 
 	}
 
 	return res, nil
+}
+
+func ForgotPasswordExecDBHandler(ctx context.Context, email string) (string, error) {
+	client, err := CreateMongoClient(ctx)
+
+	if err != nil {
+		return "", utils.ErrorHandler(err, "Database connection error")
+	}
+
+	defer client.Disconnect(ctx)
+
+	var exec models.Exec
+	err = client.Database("school").Collection("execs").FindOne(ctx, bson.M{"email": email}).Decode(&exec)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return "", utils.ErrorHandler(err, "Exec not found")
+		}
+		return "", utils.ErrorHandler(err, "Error fetching exec data")
+	}
+
+	tokenBytes := make([]byte, 32)
+
+	_, err = rand.Read(tokenBytes)
+	if err != nil {
+		return "", utils.ErrorHandler(err, "Error generating reset token")
+	}
+
+	token := hex.EncodeToString(tokenBytes)
+	hashedToken := sha256.Sum256(tokenBytes)
+	hashedTokenString := hex.EncodeToString(hashedToken[:])
+
+	duration, err := strconv.Atoi(os.Getenv("RESET_TOKEN_EXP_DURATION"))
+	if err != nil {
+		return "", utils.ErrorHandler(err, "Failed to send password reset email")
+	}
+	mins := time.Duration(duration)
+	expiry := time.Now().Add(mins * time.Minute).Format(time.RFC3339)
+
+	update := bson.M{
+		"$set": bson.M{
+			"password_reset_token":   hashedTokenString,
+			"password_token_expires": expiry,
+		},
+	}
+	_, err = client.Database("school").Collection("execs").UpdateOne(ctx, bson.M{"email": email}, update)
+	if err != nil {
+		return "", utils.ErrorHandler(err, "internal error")
+	}
+
+	resetUrl := fmt.Sprintf("https://localhost:50051/execs/resetpassword/reset/%s", token)
+	message := fmt.Sprintf("Forgot your password? Reset your passsword using the following link: \n%s\nPlease use the reset code:: %s along with your request to change password.\nIf you didn't request a password reset, please ignore this email.\nThis link is only valid for %v minutes.", resetUrl, token, mins)
+	// subject := "Your password reset link"
+
+	// m := mail.NewMessage()
+	// m.SetHeader("From", "schooladmin@school.com")
+	// m.SetHeader("To", email)
+	// m.SetHeader("Subject", subject)
+	// m.SetBody("text/plain", message)
+
+	// d := mail.NewDialer("localhost", 1025, "", "")
+	// err = d.DialAndSend(m)
+	if err != nil {
+		cleanup := bson.M{
+			"$set": bson.M{
+				"password_reset_token":   nil,
+				"password_token_expires": nil,
+			},
+		}
+		_, _ = client.Database("school").Collection("execs").UpdateOne(ctx, bson.M{"email": email}, cleanup)
+		return "", utils.ErrorHandler(err, "Could not send password reset email. Please try again")
+	}
+	return message, nil
 }
