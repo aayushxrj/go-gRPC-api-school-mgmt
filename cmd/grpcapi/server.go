@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"time"
 
 	"github.com/aayushxrj/go-gRPC-api-school-mgmt/internals/api/handlers"
 	"github.com/aayushxrj/go-gRPC-api-school-mgmt/internals/api/interceptors"
@@ -31,7 +32,8 @@ func main() {
 	}
 	defer client.Disconnect(context.Background())
 
-	s := grpc.NewServer(grpc.ChainUnaryInterceptor(interceptors.ResponseTimeInterceptor))
+	r := interceptors.NewRateLimiter(5, time.Minute)
+	s := grpc.NewServer(grpc.ChainUnaryInterceptor(interceptors.ResponseTimeInterceptor, r.RateLimitInterceptor))
 
 	pb.RegisterTeachersServiceServer(s, &handlers.Server{})
 	pb.RegisterStudentsServiceServer(s, &handlers.Server{})
