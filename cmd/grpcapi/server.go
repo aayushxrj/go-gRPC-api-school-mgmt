@@ -11,6 +11,7 @@ import (
 	"github.com/aayushxrj/go-gRPC-api-school-mgmt/internals/api/handlers"
 	"github.com/aayushxrj/go-gRPC-api-school-mgmt/internals/api/interceptors"
 	"github.com/aayushxrj/go-gRPC-api-school-mgmt/internals/repositories/mongodb"
+	"github.com/aayushxrj/go-gRPC-api-school-mgmt/pkg/utils"
 	pb "github.com/aayushxrj/go-gRPC-api-school-mgmt/proto/gen"
 	"github.com/joho/godotenv"
 	"google.golang.org/grpc"
@@ -33,7 +34,7 @@ func main() {
 	defer client.Disconnect(context.Background())
 
 	r := interceptors.NewRateLimiter(5, time.Minute)
-	s := grpc.NewServer(grpc.ChainUnaryInterceptor(interceptors.ResponseTimeInterceptor, r.RateLimitInterceptor))
+	s := grpc.NewServer(grpc.ChainUnaryInterceptor(r.RateLimitInterceptor, interceptors.ResponseTimeInterceptor, interceptors.AuthenticationInterceptor))
 
 	pb.RegisterTeachersServiceServer(s, &handlers.Server{})
 	pb.RegisterStudentsServiceServer(s, &handlers.Server{})
@@ -43,6 +44,8 @@ func main() {
 
 	// go get github.com/joho/godotenv
 	port := os.Getenv("SERVER_PORT")
+
+	go utils.JwtStore.CleanUpExpiredTokens()
 
 	fmt.Printf("Server is running on port %s\n", port)
 
