@@ -15,6 +15,7 @@ import (
 	pb "github.com/aayushxrj/go-gRPC-api-school-mgmt/proto/gen"
 	"github.com/joho/godotenv"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -26,6 +27,14 @@ func main() {
 		log.Fatalf("Error loading .env file: %v", err)
 	}
 
+	cert := os.Getenv("CERT_FILE")
+	key := os.Getenv("KEY_FILE")
+
+	creds, err := credentials.NewServerTLSFromFile(cert, key)
+	if err != nil {
+		log.Fatalf("Failed to load TLS credentials: %v", err)
+	}
+
 	// Connect MongoDB
 	client, err := mongodb.CreateMongoClient(context.Background())
 	if err != nil {
@@ -34,7 +43,7 @@ func main() {
 	defer client.Disconnect(context.Background())
 
 	r := interceptors.NewRateLimiter(5, time.Minute)
-	s := grpc.NewServer(grpc.ChainUnaryInterceptor(r.RateLimitInterceptor, interceptors.ResponseTimeInterceptor, interceptors.AuthenticationInterceptor))
+	s := grpc.NewServer(grpc.ChainUnaryInterceptor(r.RateLimitInterceptor, interceptors.ResponseTimeInterceptor, interceptors.AuthenticationInterceptor), grpc.Creds(creds))
 
 	pb.RegisterTeachersServiceServer(s, &handlers.Server{})
 	pb.RegisterStudentsServiceServer(s, &handlers.Server{})
