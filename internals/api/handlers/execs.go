@@ -38,7 +38,13 @@ func (s *Server) AddExecs(ctx context.Context, req *pb.Execs) (*pb.Execs, error)
 }
 
 func (s *Server) GetExecs(ctx context.Context, req *pb.GetExecsRequest) (*pb.Execs, error) {
-	if err := req.Validate(); err != nil {
+
+	err := utils.AuthorizeUser(ctx, "admin", "manager")
+	if err != nil {
+		return nil, utils.ErrorHandler(err, err.Error())
+	}
+
+	if err = req.Validate(); err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
