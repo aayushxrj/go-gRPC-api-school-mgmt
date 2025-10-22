@@ -91,3 +91,10 @@ Obfuscated binary file to make it difficult to reverse-engineer.
 ```
 garble build -o .\cmd\grpcapi\binaries\obfuscated_grpcapi.exe .\cmd\grpcapi\server.go
 ```
+
+# BENCHMARKING using GHZ
+
+```
+ghz --config ghz_config.json
+```
+

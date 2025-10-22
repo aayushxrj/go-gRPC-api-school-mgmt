@@ -1,0 +1,17 @@
+{
+    "proto": "/home/codeovation/cert/grpc_cert/students.proto",
+    "call": "main.StudentsService.GetStudents",
+    "concurrency": 100,
+    "data": {
+        "page_number": 1,
+        "page_size": 300
+    },
+    "max-duration": "20s",
+    "host": "localhost:50051",
+    "cert": "/home/codeovation/cert/grpc_cert/cert.pem",
+    "key": "/home/codeovation/cert/grpc_cert/key.pem",
+    "cacert": "/home/codeovation/cert/grpc_cert/cert.pem",
+    "metadata": {
+        "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MjU1OTQ2NjYsInJvbGUiOiJhZG1pbiIsInVpZCI6IjY2ZDY5YzgzNmU1NGJkZTg5YTZjMzRlOCIsInVzZXIiOiJhbGljZS5zbWl0aCJ9.AvUlaxaBtPbz-5ROO5UNP0doFLdROUJAv9VhuyK94dM"
+    }
+}
