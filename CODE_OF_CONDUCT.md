@@ -79,3 +79,15 @@ go get github.com/go-mail/mail/v2
 go get github.com/golang-jwt/jwt/v5
 
 ```
+
+# BUILD BINARIES (create TLS AND NON-TLS Versions)
+
+```
+go build -o .\cmd\grpcapi\binaries\grpcapi.exe .\cmd\grpcapi\server.go
+```
+
+Obfuscated binary file to make it difficult to reverse-engineer.
+
+```
+garble build -o .\cmd\grpcapi\binaries\obfuscated_grpcapi.exe .\cmd\grpcapi\server.go
+```
